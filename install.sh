@@ -75,7 +75,6 @@ install_pkg fish eza zoxide direnv \
     fastfetch \
     btop \
     ffmpeg 7zip fd fzf imagemagick \
-    python-pywal16 \
     thunar thunar-archive-plugin thunar-volman gvfs tumbler ffmpegthumbnailer file-roller \
     udiskie udisks2 \
     starship \
@@ -90,7 +89,7 @@ install_pkg fish eza zoxide direnv \
     curl trash-cli jq lazygit bat ripgrep hyprpicker xdg-user-dirs libnotify
 
 echo "==> Apps"
-install_pkg mpv imv qbittorrent libreoffice-fresh \
+install_pkg mpv imv qbittorrent libreoffice-fresh zed \
     steam gnome-disk-utility ntfs-3g dosfstools \
     localsend-bin
 
@@ -98,27 +97,41 @@ echo "==> Login manager"
 install_pkg sddm xorg-server
 
 # --- 4. Noctalia v5 ---
+# noctalia-git pulls in its own runtime deps and lists the optional ones.
 echo "==> Noctalia"
 install_pkg noctalia-git \
     brightnessctl ddcutil lm_sensors power-profiles-daemon \
     swappy
-    
+
 # --- 5. Config ---
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 mkdir -p "$XDG_CONFIG_HOME/hypr"
 
-# Pure Hyprland Lua configuration (Hyprland 0.55+)
-if [[ ! -f "$XDG_CONFIG_HOME/hypr/hyprland.lua" ]]; then
+# Starter Hyprland config (0.55+ uses Lua). Only written if you don't have one.
+# Hyprland generates its own default config only when none exists, so this
+# includes the essential binds; extend it by hand afterwards.
+if [[ ! -f "$XDG_CONFIG_HOME/hypr/hyprland.lua" && ! -f "$XDG_CONFIG_HOME/hypr/hyprland.conf" ]]; then
     cat > "$XDG_CONFIG_HOME/hypr/hyprland.lua" <<'EOF'
--- Hyprland Lua configuration
+-- Hyprland Lua configuration (starter)
 hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
 
 hl.on("hyprland.start", function()
-    -- Clear ambient capabilities & delay briefly so DBus/Wayland sockets settle
-    hl.exec_cmd("sh -c 'sleep 0.5 && setpriv --ambient-caps -all noctalia'")
+    hl.exec_cmd("noctalia")
     hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
     hl.exec_cmd("udiskie")
 end)
+
+local mod = "SUPER"
+local ipc = "noctalia msg "
+
+hl.bind(mod .. " + Return", hl.dsp.exec_cmd("kitty"))
+hl.bind(mod .. " + F", hl.dsp.exec_cmd("thunar"))
+hl.bind(mod .. " + B", hl.dsp.exec_cmd("zen-browser"))
+hl.bind(mod .. " + C", hl.dsp.exec_cmd("zeditor"))
+hl.bind(mod .. " + S", hl.dsp.exec_cmd("spotify"))
+hl.bind(mod .. " + Q", hl.dsp.window.close())
+hl.bind(mod .. " + Escape", hl.dsp.exit())
+hl.bind(mod .. " + Space", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"))
 EOF
 fi
 
@@ -156,7 +169,8 @@ fi
 
 mkdir -p "$XDG_CONFIG_HOME/fish/functions"
 
-# Silence the fish welcome message
+# Silence the fish welcome message (an empty fish_greeting function overrides
+# the default, even if the copied config sets the variable).
 cat > "$XDG_CONFIG_HOME/fish/functions/fish_greeting.fish" <<'EOF'
 function fish_greeting
 end
@@ -202,6 +216,7 @@ else
 fi
 
 # --- 7b. Colloid-Dynamic icons (your fork) ---
+# The icons that pick up the wallpaper colours in Thunar.
 echo "==> Colloid-Dynamic icons"
 COLLOID_SRC="$HOME/.local/share/colloid-src"
 if [[ ! -d "$COLLOID_SRC/.git" ]]; then
@@ -216,6 +231,7 @@ fi
 
 # --- 8. GTK / icon theme defaults + file manager ---
 echo "==> GTK / icon theme defaults"
+# These can fail from a TTY with no D-Bus session; if so, run them once after first login.
 gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3' \
     || echo "    WARN: gsettings failed. After first login run the gsettings lines in this script."
 if [[ -d "$HOME/.local/share/icons/Colloid-Dynamic-Dark" ]]; then
@@ -244,6 +260,10 @@ xdg-user-dirs-update
 
 echo
 echo "==> Installation complete! Reboot, select Hyprland in SDDM, and Noctalia starts with the session."
+echo
+echo "Keybinds in the starter config: Super+Return terminal, Super+F Thunar, Super+B Zen,"
+echo "Super+C Zed, Super+S Spotify, Super+Space launcher, Super+Q close window, Super+Escape exit."
+echo "Add the rest in ~/.config/hypr/hyprland.lua."
 echo
 echo "After first login:"
 echo "  - Noctalia Settings -> Color Scheme -> Templates: toggle on GTK and Qt"
