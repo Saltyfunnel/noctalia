@@ -86,7 +86,7 @@ install_pkg fish eza zoxide direnv \
     pipewire pipewire-pulse pipewire-audio pipewire-alsa pipewire-jack wireplumber pavucontrol \
     wl-clipboard cliphist \
     noto-fonts noto-fonts-cjk noto-fonts-emoji \
-    curl trash-cli jq lazygit bat ripgrep hyprpicker xdg-user-dirs
+    curl trash-cli jq lazygit bat ripgrep hyprpicker xdg-user-dirs libnotify
 
 echo "==> Apps"
 install_pkg mpv imv qbittorrent libreoffice-fresh \
@@ -106,37 +106,6 @@ install_pkg noctalia-git \
 # --- 5. Config ---
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 mkdir -p "$XDG_CONFIG_HOME"
-
-# Hyprland 0.55+ loads ~/.config/hypr/hyprland.lua first and only falls back to
-# the legacy hyprland.conf. Write a minimal Lua config if there is neither.
-HYPR_DIR="$XDG_CONFIG_HOME/hypr"
-if [[ ! -f "$HYPR_DIR/hyprland.lua" && ! -f "$HYPR_DIR/hyprland.conf" ]]; then
-    echo "==> No Hyprland config found, writing a minimal hyprland.lua"
-    mkdir -p "$HYPR_DIR"
-    cat > "$HYPR_DIR/hyprland.lua" <<'EOF'
--- Minimal Hyprland (0.55+) Lua config. Extend it from the wiki: https://wiki.hypr.land
-
-local terminal     = "kitty"
-local fileExplorer = "thunar"
-
-hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
-hl.env("XCURSOR_SIZE", "24")
-
-hl.on("hyprland.start", function()
-    hl.exec_cmd("noctalia")
-    hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
-    hl.exec_cmd("udiskie")
-end)
-
-hl.bind("SUPER + Return", hl.dsp.exec_cmd(terminal))
-hl.bind("SUPER + E", hl.dsp.exec_cmd(fileExplorer))
-hl.bind("SUPER + Q", hl.dsp.window.close())
-hl.bind("SUPER + SHIFT + M", hl.dsp.exit())
-EOF
-else
-    echo "    NOTE: existing Hyprland config found, not touching it. To autostart Noctalia add:"
-    echo '      hl.on("hyprland.start", function() hl.exec_cmd("noctalia") end)'
-fi
 
 # Minimal fish config (only if you don't already have one)
 mkdir -p "$XDG_CONFIG_HOME/fish"
@@ -218,12 +187,31 @@ else
     echo "    WARN: Spotify or Spicetify installation failed."
 fi
 
+# --- 7b. Colloid-Dynamic icons (your fork) ---
+# The icons that pick up the wallpaper colours in Thunar.
+echo "==> Colloid-Dynamic icons"
+COLLOID_SRC="$HOME/.local/share/colloid-src"
+if [[ ! -d "$COLLOID_SRC/.git" ]]; then
+    git clone --depth=1 https://github.com/Saltyfunnel/colloid.git "$COLLOID_SRC" \
+        || echo "    WARN: couldn't clone the Colloid repo; falling back to Papirus."
+fi
+if [[ -f "$COLLOID_SRC/install.sh" ]]; then
+    mkdir -p "$HOME/.local/share/icons"
+    (cd "$COLLOID_SRC" && bash ./install.sh -d "$HOME/.local/share/icons" -n Colloid-Dynamic -s default) \
+        || echo "    WARN: Colloid install failed; falling back to Papirus."
+fi
+
 # --- 8. GTK / icon theme defaults + file manager ---
 echo "==> GTK / icon theme defaults"
 # These can fail from a TTY with no D-Bus session; if so, run them once after first login.
 gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3' \
     || echo "    WARN: gsettings failed. After first login run the gsettings lines in this script."
-gsettings set org.gnome.desktop.interface icon-theme 'Papirus-Dark' || true
+if [[ -d "$HOME/.local/share/icons/Colloid-Dynamic-Dark" ]]; then
+    ICON_THEME='Colloid-Dynamic-Dark'
+else
+    ICON_THEME='Papirus-Dark'
+fi
+gsettings set org.gnome.desktop.interface icon-theme "$ICON_THEME" || true
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' || true
 xdg-mime default thunar.desktop inode/directory || true
 
@@ -245,7 +233,15 @@ xdg-user-dirs-update
 echo
 echo "==> Installation complete! Reboot, select Hyprland in SDDM, and Noctalia starts with the session."
 echo
+echo "Hyprland config is left to you (Hyprland 0.55+ uses ~/.config/hypr/hyprland.lua). Add:"
+echo '  hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")'
+echo '  hl.on("hyprland.start", function()'
+echo '      hl.exec_cmd("noctalia")'
+echo '      hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")'
+echo '      hl.exec_cmd("udiskie")'
+echo '  end)'
+echo
 echo "After first login:"
 echo "  - Noctalia Settings -> Color Scheme -> Templates: toggle on GTK and Qt"
-echo "  - qt6ct: Color Scheme tab -> pick 'noctalia' -> Apply; Icon Theme tab -> Papirus-Dark"
+echo "  - qt6ct: Color Scheme tab -> pick 'noctalia' -> Apply; Icon Theme tab -> Colloid-Dynamic-Dark (Papirus-Dark if Colloid failed)"
 echo "  - Fully restart Thunar so it picks up the theme"
