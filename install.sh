@@ -102,20 +102,20 @@ echo "==> Noctalia"
 install_pkg noctalia-git \
     brightnessctl ddcutil lm_sensors power-profiles-daemon \
     swappy
-
+    
 # --- 5. Config ---
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
-mkdir -p "$XDG_CONFIG_HOME"
-
-# Base Hyprland config (Lua-based for Hyprland 0.55+) with startup hooks
 mkdir -p "$XDG_CONFIG_HOME/hypr"
+
+# Pure Hyprland Lua configuration (Hyprland 0.55+)
 if [[ ! -f "$XDG_CONFIG_HOME/hypr/hyprland.lua" ]]; then
     cat > "$XDG_CONFIG_HOME/hypr/hyprland.lua" <<'EOF'
--- Minimal Hyprland configuration
+-- Hyprland Lua configuration
 hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
 
 hl.on("hyprland.start", function()
-    hl.exec_cmd("noctalia")
+    -- Clear ambient capabilities & delay briefly so DBus/Wayland sockets settle
+    hl.exec_cmd("sh -c 'sleep 0.5 && setpriv --ambient-caps -all noctalia'")
     hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
     hl.exec_cmd("udiskie")
 end)
