@@ -132,6 +132,11 @@ hl.bind(mod .. " + S", hl.dsp.exec_cmd("spotify"))
 hl.bind(mod .. " + Q", hl.dsp.window.close())
 hl.bind(mod .. " + Escape", hl.dsp.exit())
 hl.bind(mod .. " + Space", hl.dsp.exec_cmd(ipc .. "panel-toggle launcher"))
+
+hl.window_rule({ match = { class = "kitty" }, opacity = "0.80" })
+hl.window_rule({ match = { class = "^[tT]hunar$" }, opacity = "0.80 0.80" })
+hl.window_rule({ match = { class = "Spotify" }, opacity = "0.80 0.80" })
+hl.window_rule({ match = { class = "kitty" }, suppress_event = "maximize" })
 EOF
 fi
 
