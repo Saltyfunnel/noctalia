@@ -75,6 +75,7 @@ install_pkg fish eza zoxide direnv \
     fastfetch \
     btop \
     ffmpeg 7zip fd fzf imagemagick \
+    python-pywal16 \
     thunar thunar-archive-plugin thunar-volman gvfs tumbler ffmpegthumbnailer file-roller \
     udiskie udisks2 \
     starship \
@@ -97,7 +98,6 @@ echo "==> Login manager"
 install_pkg sddm xorg-server
 
 # --- 4. Noctalia v5 ---
-# noctalia-git pulls in its own runtime deps and lists the optional ones.
 echo "==> Noctalia"
 install_pkg noctalia-git \
     brightnessctl ddcutil lm_sensors power-profiles-daemon \
@@ -106,6 +106,21 @@ install_pkg noctalia-git \
 # --- 5. Config ---
 XDG_CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
 mkdir -p "$XDG_CONFIG_HOME"
+
+# Base Hyprland config (Lua-based for Hyprland 0.55+) with startup hooks
+mkdir -p "$XDG_CONFIG_HOME/hypr"
+if [[ ! -f "$XDG_CONFIG_HOME/hypr/hyprland.lua" ]]; then
+    cat > "$XDG_CONFIG_HOME/hypr/hyprland.lua" <<'EOF'
+-- Minimal Hyprland configuration
+hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")
+
+hl.on("hyprland.start", function()
+    hl.exec_cmd("noctalia")
+    hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")
+    hl.exec_cmd("udiskie")
+end)
+EOF
+fi
 
 # Minimal fish config (only if you don't already have one)
 mkdir -p "$XDG_CONFIG_HOME/fish"
@@ -141,8 +156,7 @@ fi
 
 mkdir -p "$XDG_CONFIG_HOME/fish/functions"
 
-# Silence the fish welcome message (an empty fish_greeting function overrides
-# the default, even if the copied config sets the variable).
+# Silence the fish welcome message
 cat > "$XDG_CONFIG_HOME/fish/functions/fish_greeting.fish" <<'EOF'
 function fish_greeting
 end
@@ -188,7 +202,6 @@ else
 fi
 
 # --- 7b. Colloid-Dynamic icons (your fork) ---
-# The icons that pick up the wallpaper colours in Thunar.
 echo "==> Colloid-Dynamic icons"
 COLLOID_SRC="$HOME/.local/share/colloid-src"
 if [[ ! -d "$COLLOID_SRC/.git" ]]; then
@@ -203,7 +216,6 @@ fi
 
 # --- 8. GTK / icon theme defaults + file manager ---
 echo "==> GTK / icon theme defaults"
-# These can fail from a TTY with no D-Bus session; if so, run them once after first login.
 gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3' \
     || echo "    WARN: gsettings failed. After first login run the gsettings lines in this script."
 if [[ -d "$HOME/.local/share/icons/Colloid-Dynamic-Dark" ]]; then
@@ -232,14 +244,6 @@ xdg-user-dirs-update
 
 echo
 echo "==> Installation complete! Reboot, select Hyprland in SDDM, and Noctalia starts with the session."
-echo
-echo "Hyprland config is left to you (Hyprland 0.55+ uses ~/.config/hypr/hyprland.lua). Add:"
-echo '  hl.env("QT_QPA_PLATFORMTHEME", "qt6ct")'
-echo '  hl.on("hyprland.start", function()'
-echo '      hl.exec_cmd("noctalia")'
-echo '      hl.exec_cmd("/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1")'
-echo '      hl.exec_cmd("udiskie")'
-echo '  end)'
 echo
 echo "After first login:"
 echo "  - Noctalia Settings -> Color Scheme -> Templates: toggle on GTK and Qt"
