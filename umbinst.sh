@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# umbinst.sh
+# install-umbriel-clean.sh
 #
 # Fresh minimal Arch install -> Umbriel compositor + Noctalia v5 desktop shell (with Spicetify).
 # Umbriel is Noctalia's own Wayland compositor (wlroots + SceneFX). It is young (0.1.x),
@@ -260,30 +260,12 @@ else
     echo "    WARN: Spotify or Spicetify installation failed."
 fi
 
-# --- 7b. Colloid-Dynamic icons (your fork) ---
-# The icons that pick up the wallpaper colours in Thunar.
-echo "==> Colloid-Dynamic icons"
-COLLOID_SRC="$HOME/.local/share/colloid-src"
-if [[ ! -d "$COLLOID_SRC/.git" ]]; then
-    git clone --depth=1 https://github.com/Saltyfunnel/colloid.git "$COLLOID_SRC" \
-        || echo "    WARN: couldn't clone the Colloid repo; falling back to Papirus."
-fi
-if [[ -f "$COLLOID_SRC/install.sh" ]]; then
-    mkdir -p "$HOME/.local/share/icons"
-    (cd "$COLLOID_SRC" && bash ./install.sh -d "$HOME/.local/share/icons" -n Colloid-Dynamic -s default) \
-        || echo "    WARN: Colloid install failed; falling back to Papirus."
-fi
-
 # --- 8. GTK / icon theme defaults + file manager ---
 echo "==> GTK / icon theme defaults"
 # These can fail from a TTY with no D-Bus session; if so, run them once after first login.
 gsettings set org.gnome.desktop.interface gtk-theme 'adw-gtk3' \
     || echo "    WARN: gsettings failed. After first login run the gsettings lines in this script."
-if [[ -d "$HOME/.local/share/icons/Colloid-Dynamic-Dark" ]]; then
-    ICON_THEME='Colloid-Dynamic-Dark'
-else
-    ICON_THEME='Papirus-Dark'
-fi
+ICON_THEME='Papirus-Dark'
 gsettings set org.gnome.desktop.interface icon-theme "$ICON_THEME" || true
 gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark' || true
 xdg-mime default thunar.desktop inode/directory || true
@@ -319,7 +301,7 @@ echo "Super+Q close window, Super+Escape quit session."
 echo "Add the rest in ~/.config/umbriel/config.toml (run 'umbriel msg --help' for actions)."
 echo
 echo "After first login:"
-echo "  - Noctalia Settings -> Color Scheme -> Templates: toggle on GTK and Qt"
+echo "  - Noctalia Settings -> Color Scheme -> Templates: toggle on GTK, Qt and Papirus icons"
 echo "  - Noctalia Settings -> Umbriel -> Overview: enable type-to-launch if you want it"
-echo "  - qt6ct: Color Scheme tab -> pick 'noctalia' -> Apply; Icon Theme tab -> Colloid-Dynamic-Dark (Papirus-Dark if Colloid failed)"
+echo "  - qt6ct: Color Scheme tab -> pick 'noctalia' -> Apply; Icon Theme tab -> Papirus-Dark"
 echo "  - Fully restart Thunar so it picks up the theme"
