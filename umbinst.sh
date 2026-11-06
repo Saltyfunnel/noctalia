@@ -123,6 +123,11 @@ fi
 # Once this file exists, [keybinds] is the COMPLETE set (defaults only load
 # when there is no config), so extend it by hand afterwards.
 mkdir -p "$XDG_CONFIG_HOME/umbriel"
+# Re-running on an existing install? FORCE_CONFIG=1 backs up the old config and rewrites it.
+if [[ "${FORCE_CONFIG:-0}" == "1" && -f "$XDG_CONFIG_HOME/umbriel/config.toml" ]]; then
+    mv "$XDG_CONFIG_HOME/umbriel/config.toml" "$XDG_CONFIG_HOME/umbriel/config.toml.bak"
+    echo "    Backed up old Umbriel config to config.toml.bak"
+fi
 if [[ ! -f "$XDG_CONFIG_HOME/umbriel/config.toml" ]]; then
     cat > "$XDG_CONFIG_HOME/umbriel/config.toml" <<'EOF'
 [general]
@@ -161,22 +166,90 @@ blur_ignore_alpha = 0.5
 blur_optimized = false
 
 [keybinds]
-"Mod+Return" = "spawn:kitty"
-"Mod+F" = "spawn:thunar"
-"Mod+B" = "spawn:zen-browser"
-"Mod+C" = "spawn:zeditor"
-"Mod+S" = "spawn:spotify"
-"Mod+Q" = "window-close"
-"Mod+I" = "overview-toggle"
-"Mod+Escape" = "session-quit"
-"Mod+Space" = "spawn:noctalia msg panel-toggle launcher"
-"Mod+Comma" = "spawn:noctalia msg settings-toggle"
-"Alt+Tab" = "spawn:noctalia msg window-switcher"
-"XF86AudioRaiseVolume" = "spawn:noctalia msg volume-up"
-"XF86AudioLowerVolume" = "spawn:noctalia msg volume-down"
-"XF86AudioMute" = "spawn:noctalia msg volume-mute"
-"XF86MonBrightnessUp" = "spawn:noctalia msg brightness-up"
-"XF86MonBrightnessDown" = "spawn:noctalia msg brightness-down"
+# Apps
+"Mod" = "spawn noctalia msg panel-toggle launcher"
+"Mod+Space" = "spawn noctalia msg panel-toggle launcher"
+"Mod+Return" = { action = "spawn kitty", repeat = false }
+"Mod+E" = "spawn thunar"
+"Mod+B" = "spawn zen-browser"
+"Mod+C" = "spawn zeditor"
+"Mod+S" = "spawn spotify"
+"Mod+V" = "spawn noctalia msg panel-toggle clipboard"
+"Mod+W" = "spawn noctalia msg panel-toggle wallpaper"
+"Mod+P" = "spawn noctalia msg screenshot-region"
+
+# Session / windows
+"Mod+Q" = { action = "window-close", repeat = false }
+"Mod+Shift+Q" = { action = "window-kill", repeat = false }
+"Mod+Escape" = "spawn noctalia msg panel-toggle session"
+"Mod+Shift+Escape" = { action = "shortcuts-inhibit-toggle", allow_when_inhibited = true, repeat = false }
+"Mod+Ctrl+Escape" = "session-quit"
+"Mod+F" = "window-toggle-fullscreen"
+"Mod+T" = "window-toggle-floating"
+"Mod+Shift+P" = "window-toggle-pinned"
+"Mod+Tab" = "window-focus-last"
+"Alt+Tab" = "window-focus-last"
+
+# Focus
+"Mod+H" = "window-focus-left"
+"Mod+L" = "window-focus-right"
+"Mod+J" = "window-focus-down"
+"Mod+K" = "window-focus-up"
+"Mod+Left" = "window-focus-left"
+"Mod+Right" = "window-focus-right"
+"Mod+Down" = "window-focus-down"
+"Mod+Up" = "window-focus-up"
+
+# Move
+"Mod+Shift+H" = "window-move-left"
+"Mod+Shift+L" = "window-move-right"
+"Mod+Shift+J" = "window-move-down"
+"Mod+Shift+K" = "window-move-up"
+"Mod+Shift+Left" = "column-move-left"
+"Mod+Shift+Right" = "column-move-right"
+"Mod+Comma" = "window-consume-left"
+"Mod+Period" = "window-consume-right"
+
+# Size
+"Mod+R" = "window-cycle-primary-extent"
+"Mod+Shift+R" = "window-cycle-primary-extent-back"
+"Mod+Minus" = "window-modify-primary-extent -0.02"
+"Mod+Equal" = "window-modify-primary-extent +0.02"
+
+# Overview / workspaces
+"Mod+O" = { action = "overview-toggle", repeat = false }
+"Mod+I" = { action = "overview-toggle", repeat = false }
+"Mod+1" = "workspace-switch 1"
+"Mod+2" = "workspace-switch 2"
+"Mod+3" = "workspace-switch 3"
+"Mod+4" = "workspace-switch 4"
+"Mod+5" = "workspace-switch 5"
+"Mod+6" = "workspace-switch 6"
+"Mod+7" = "workspace-switch 7"
+"Mod+8" = "workspace-switch 8"
+"Mod+9" = "workspace-switch 9"
+"Mod+Shift+1" = "window-move-to-workspace 1"
+"Mod+Shift+2" = "window-move-to-workspace 2"
+"Mod+Shift+3" = "window-move-to-workspace 3"
+"Mod+Shift+4" = "window-move-to-workspace 4"
+"Mod+Shift+5" = "window-move-to-workspace 5"
+"Mod+Shift+6" = "window-move-to-workspace 6"
+"Mod+Shift+7" = "window-move-to-workspace 7"
+"Mod+Shift+8" = "window-move-to-workspace 8"
+"Mod+Shift+9" = "window-move-to-workspace 9"
+"Mod+WheelUp" = { action = "workspace-previous", cooldown_ms = 150 }
+"Mod+WheelDown" = { action = "workspace-next", cooldown_ms = 150 }
+"Mod+MouseMiddle" = "layout-scroll-drag"
+
+# Media / brightness (through Noctalia so the OSDs show)
+"XF86AudioRaiseVolume" = { action = "spawn noctalia msg volume-up", allow_when_locked = true }
+"XF86AudioLowerVolume" = { action = "spawn noctalia msg volume-down", allow_when_locked = true }
+"XF86AudioMute" = { action = "spawn noctalia msg volume-mute", allow_when_locked = true, repeat = false }
+"XF86AudioPlay" = { action = "spawn noctalia msg media toggle", allow_when_locked = true, repeat = false }
+"XF86AudioNext" = { action = "spawn noctalia msg media next", allow_when_locked = true }
+"XF86AudioPrev" = { action = "spawn noctalia msg media previous", allow_when_locked = true }
+"XF86MonBrightnessUp" = { action = "spawn noctalia msg brightness-up", allow_when_locked = true }
+"XF86MonBrightnessDown" = { action = "spawn noctalia msg brightness-down", allow_when_locked = true }
 EOF
 fi
 
@@ -295,9 +368,10 @@ fi
 echo
 echo "==> Installation complete! Reboot, select Umbriel in SDDM, and Noctalia starts with the session."
 echo
-echo "Keybinds in the starter config: Super+Return terminal, Super+F Thunar, Super+B Zen,"
-echo "Super+C Zed, Super+S Spotify, Super+Space launcher, Super+I overview, Alt+Tab switcher,"
-echo "Super+Q close window, Super+Escape quit session."
+echo "Keybinds in the starter config: Super+Return terminal, Super+E Thunar, Super+B Zen,"
+echo "Super+C Zed, Super+S Spotify, Super (tap) or Super+Space launcher, Super+O overview,"
+echo "Super+H/J/K/L focus, Super+1..9 workspaces, Super+F fullscreen, Super+Q close,"
+echo "Super+Escape power menu, Super+Ctrl+Escape quit session."
 echo "Add the rest in ~/.config/umbriel/config.toml (run 'umbriel msg --help' for actions)."
 echo
 echo "After first login:"
