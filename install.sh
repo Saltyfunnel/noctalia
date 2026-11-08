@@ -530,6 +530,209 @@ function fish_greeting
 end
 EOF
 
+# --- 5b. SDDM login theme driven by Noctalia's colours ---
+# SDDM can't read your home directory, so Noctalia renders a theme.conf from a
+# user template into ~/.cache/noctalia-sddm/ and a post_hook copies it into the
+# theme dir whenever the scheme/wallpaper changes.
+# Needs one manual step after first login: Noctalia Settings -> Color Scheme ->
+# Templates -> Advanced -> enable "User templates".
+NOCTALIA_DIR="$XDG_CONFIG_HOME/noctalia"
+RENDER_DIR="$HOME/.cache/noctalia-sddm"
+mkdir -p "$NOCTALIA_DIR/templates" "$RENDER_DIR"
+
+echo "==> SDDM theme"
+SDDM_THEME="noctalia"
+SDDM_THEME_DIR="/usr/share/sddm/themes/$SDDM_THEME"
+
+sudo mkdir -p "$SDDM_THEME_DIR" /etc/sddm.conf.d
+
+# theme.conf is the only file the hook rewrites, so make just that file yours.
+sudo tee "$SDDM_THEME_DIR/theme.conf" >/dev/null <<'EOF'
+[General]
+colorBg=#141218
+colorSurface=#211f26
+colorFg=#e6e0e9
+colorAccent=#d0bcff
+colorOnAccent=#381e72
+colorOutline=#938f99
+EOF
+sudo chown "$USER" "$SDDM_THEME_DIR/theme.conf"
+
+sudo tee "$SDDM_THEME_DIR/metadata.desktop" >/dev/null <<'EOF'
+[SddmGreeterTheme]
+Name=Noctalia
+Description=Minimal login theme using the Noctalia Material You scheme
+Author=Custom
+Type=sddm-theme
+MainScript=Main.qml
+ConfigFile=theme.conf
+QtVersion=6
+EOF
+
+sudo tee "$SDDM_THEME_DIR/Main.qml" >/dev/null <<'EOF'
+import QtQuick 2.15
+import QtQuick.Controls 2.15
+import QtQuick.Layouts 1.15
+
+Rectangle {
+    id: root
+    color: config.colorBg
+
+    readonly property string uiFont: "JetBrainsMono Nerd Font"
+
+    Connections {
+        target: sddm
+        function onLoginFailed() {
+            passwordInput.text = ""
+            passwordInput.forceActiveFocus()
+        }
+    }
+
+    Rectangle {
+        anchors.centerIn: parent
+        width: 360
+        height: 380
+        radius: 16
+        color: config.colorSurface
+        border.color: config.colorOutline
+        border.width: 1
+
+        ColumnLayout {
+            anchors.centerIn: parent
+            width: parent.width - 60
+            spacing: 20
+
+            Rectangle {
+                Layout.alignment: Qt.AlignHCenter
+                width: 72
+                height: 72
+                radius: 36
+                color: config.colorAccent
+
+                Text {
+                    anchors.centerIn: parent
+                    text: usernameInput.text.length > 0 ? usernameInput.text.substring(0, 1).toUpperCase() : "?"
+                    color: config.colorOnAccent
+                    font.pixelSize: 32
+                    font.bold: true
+                    font.family: root.uiFont
+                }
+            }
+
+            TextField {
+                id: usernameInput
+                Layout.fillWidth: true
+                placeholderText: "Username"
+                text: userModel.lastUser
+                color: config.colorFg
+                font.family: root.uiFont
+                font.pixelSize: 14
+                background: Rectangle {
+                    color: config.colorBg
+                    radius: 8
+                    border.width: 1
+                    border.color: usernameInput.activeFocus ? config.colorAccent : config.colorOutline
+                }
+            }
+
+            TextField {
+                id: passwordInput
+                Layout.fillWidth: true
+                placeholderText: "Password"
+                echoMode: TextInput.Password
+                focus: true
+                color: config.colorFg
+                font.family: root.uiFont
+                font.pixelSize: 14
+                background: Rectangle {
+                    color: config.colorBg
+                    radius: 8
+                    border.width: 1
+                    border.color: passwordInput.activeFocus ? config.colorAccent : config.colorOutline
+                }
+                onAccepted: sddm.login(usernameInput.text, passwordInput.text, sessionSelect.currentIndex)
+            }
+
+            ComboBox {
+                id: sessionSelect
+                Layout.fillWidth: true
+                model: sessionModel
+                textRole: "name"
+                currentIndex: sessionModel.lastIndex
+                font.family: root.uiFont
+                font.pixelSize: 12
+                contentItem: Text {
+                    leftPadding: 10
+                    text: sessionSelect.displayText
+                    color: config.colorFg
+                    font: sessionSelect.font
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    color: config.colorBg
+                    radius: 8
+                    border.width: 1
+                    border.color: config.colorOutline
+                }
+            }
+
+            Button {
+                Layout.fillWidth: true
+                height: 40
+                onClicked: sddm.login(usernameInput.text, passwordInput.text, sessionSelect.currentIndex)
+                contentItem: Text {
+                    text: "LOGIN"
+                    color: config.colorOnAccent
+                    font.bold: true
+                    font.family: root.uiFont
+                    font.pixelSize: 14
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                background: Rectangle {
+                    color: parent.down ? Qt.darker(config.colorAccent, 1.2) : config.colorAccent
+                    radius: 8
+                }
+            }
+        }
+    }
+}
+EOF
+
+sudo tee /etc/sddm.conf.d/10-theme.conf >/dev/null <<EOF
+[Theme]
+Current=$SDDM_THEME
+EOF
+
+# Noctalia user template (hex output already includes the leading #)
+cat > "$NOCTALIA_DIR/templates/sddm-theme.conf" <<'EOF'
+[General]
+colorBg={{colors.background.default.hex}}
+colorSurface={{colors.surface.default.hex}}
+colorFg={{colors.on_surface.default.hex}}
+colorAccent={{colors.primary.default.hex}}
+colorOnAccent={{colors.on_primary.default.hex}}
+colorOutline={{colors.outline.default.hex}}
+EOF
+
+# Register the template; post_hook copies the rendered file into the theme.
+USER_TEMPLATES="$NOCTALIA_DIR/user-templates.toml"
+touch "$USER_TEMPLATES"
+if ! grep -q '^\[templates.sddm\]' "$USER_TEMPLATES"; then
+    cat >> "$USER_TEMPLATES" <<EOF
+
+[templates.sddm]
+input_path = "$NOCTALIA_DIR/templates/sddm-theme.conf"
+output_path = "$RENDER_DIR/theme.conf"
+post_hook = "cp -f $RENDER_DIR/theme.conf $SDDM_THEME_DIR/theme.conf"
+EOF
+fi
+
+# If a scheme has already been rendered, apply it right away.
+if [[ -f "$RENDER_DIR/theme.conf" ]]; then
+    cp -f "$RENDER_DIR/theme.conf" "$SDDM_THEME_DIR/theme.conf"
+fi
+
 # --- 6. Wallpapers ---
 WALLPAPER_REPO="${WALLPAPER_REPO:-https://github.com/Saltyfunnel/Wallpapers.git}"
 WALLPAPER_SRC="$HOME/.local/share/wallpapers"
@@ -622,7 +825,8 @@ echo "Super+F Thunar, Super+B Zen, Super+C Zed, Super+S Spotify, Super+I btop, S
 echo
 echo "After first login:"
 echo "  - Noctalia Settings -> Shell -> enable Screen Corners (size is the radius in px)"
-echo "  - Noctalia Settings -> Color Scheme -> Templates: toggle on GTK and Qt"
+echo "  - Noctalia Settings -> Color Scheme -> Templates: toggle on GTK and Qt, and under Advanced enable User templates (SDDM theme)"
+echo "  - Change the wallpaper or scheme once so the SDDM login colours render"
 echo "  - qt6ct: Color Scheme tab -> pick 'noctalia' -> Apply; Icon Theme tab -> Colloid-Dynamic-Dark (Papirus-Dark if Colloid failed)"
 echo "  - Check Zen's window class with 'hyprctl clients' if the opacity rule doesn't apply"
 echo "  - Fully restart Thunar so it picks up the theme"
